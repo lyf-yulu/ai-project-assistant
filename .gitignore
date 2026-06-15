@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+.idea/
+.vscode/
+*.swp
+.pytest_cache/
+htmlcov/
+.coverage
