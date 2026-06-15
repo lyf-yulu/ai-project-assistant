@@ -1,38 +1,41 @@
-"""嵌入模型封装。索引脚本和后端共用此模块，保证向量维度一致。"""
-from sentence_transformers import SentenceTransformer
+"""嵌入模型封装。使用 fastembed (ONNX 运行时)，轻量无 PyTorch。"""
+import os
 import numpy as np
+from fastembed import TextEmbedding
 
 MODEL_NAME = "BAAI/bge-small-zh-v1.5"
-VECTOR_DIM = 512  # BGE-small-zh-v1.5 输出维度
+VECTOR_DIM = 512
 
-_model = None
+# 缓存目录：优先用 HF_HOME，否则用 fastembed 默认（系统临时目录）
+_CACHE_DIR = os.environ.get("HF_HOME")
+
+_embedder = None
 
 
-def _get_model():
-    """延迟加载模型（单例）。"""
-    global _model
-    if _model is None:
-        _model = SentenceTransformer(MODEL_NAME)
-    return _model
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        kwargs = {"model_name": MODEL_NAME}
+        if _CACHE_DIR:
+            kwargs["cache_dir"] = _CACHE_DIR
+        _embedder = TextEmbedding(**kwargs)
+    return _embedder
 
 
 def embed_texts(texts: list[str]) -> np.ndarray:
     """将文本列表转为向量数组，shape=(len(texts), VECTOR_DIM)，已归一化。"""
-    model = _get_model()
-    embeddings = model.encode(
-        texts,
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )
-    return np.array(embeddings, dtype=np.float32)
+    if not texts:
+        return np.empty((0, VECTOR_DIM), dtype=np.float32)
+
+    model = _get_embedder()
+    embeddings = list(model.embed(texts))
+    result = np.array(embeddings, dtype=np.float32)
+    # 归一化（FAISS 内积搜索 = 余弦相似度）
+    norms = np.linalg.norm(result, axis=1, keepdims=True)
+    norms[norms == 0] = 1
+    return result / norms
 
 
 def embed_query(query: str) -> np.ndarray:
-    """将单个查询文本转为向量，shape=(VECTOR_DIM,)，已归一化。"""
-    model = _get_model()
-    embedding = model.encode(
-        query,
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )
-    return np.array(embedding, dtype=np.float32)
+    """将单个查询文本转为向量，shape=(VECTOR_DIM,)。"""
+    return embed_texts([query])[0]

@@ -19,4 +19,4 @@ services:
       - key: MAX_QUESTION_LENGTH
         value: "2000"
       - key: HF_HOME
-        value: /tmp/hf_cache  # Render 临时目录，重启后重新下载模型
+        value: /tmp/hf_cache
