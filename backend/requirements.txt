@@ -1,0 +1,7 @@
+flask>=3.0.0
+flask-cors>=4.0.0
+gunicorn>=22.0.0
+faiss-cpu>=1.8.0
+numpy>=1.26.0
+sentence-transformers>=2.7.0
+openai>=1.30.0
