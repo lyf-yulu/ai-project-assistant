@@ -220,6 +220,7 @@ def index_project(project_name: str, project_dir: str):
         for ch in chunks:
             ch["file"] = str(rel)  # 转为相对路径
             ch["project"] = project_name
+            ch["project_root"] = project_dir
         all_chunks.extend(chunks)
 
     if not all_chunks:

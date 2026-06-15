@@ -104,21 +104,12 @@ def search(query: str, project: Optional[str] = None) -> list[dict]:
 def _get_snippet(project_name: str, meta: dict, max_len: int = 200) -> str:
     """从源文件读取指定行范围的文本片段。"""
     try:
-        proj_dir = None
-        # 尝试定位项目根目录（此处用相对路径）
-        # 实际存储的是相对项目根目录的路径
-        file_path = KNOWLEDGE_DIR.parent.parent  # 回退
-        full_path = None
-        for candidate in [
-            Path.home() / "Desktop/ai-generation-portable-apps",
-            Path.home() / "Desktop/ai-generation-portable-apps-v0.1",
-        ]:
-            test_path = candidate / meta["file"]
-            if test_path.exists():
-                full_path = test_path
-                break
+        project_root = meta.get("project_root")
+        if not project_root:
+            return "(项目路径未记录)"
 
-        if full_path is None:
+        full_path = Path(project_root) / meta["file"]
+        if not full_path.exists():
             return "(源文件未找到)"
 
         lines = full_path.read_text(encoding="utf-8").split("\n")
