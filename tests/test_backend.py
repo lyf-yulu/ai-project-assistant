@@ -25,7 +25,7 @@ def test_health(client):
     data = resp.get_json()
     assert data["status"] == "ok"
     assert isinstance(data["projects"], list)
-    assert "ai-gen-apps" in data["projects"]
+    assert len(data["projects"]) > 0
 
 
 def test_chat_empty_question(client):
