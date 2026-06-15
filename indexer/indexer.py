@@ -35,64 +35,81 @@ SKIP_DIRS = {"outputs", "archives", "logs", "state", "__pycache__",
 SKIP_FILES = {"config.json", "config_github.json", ".DS_Store"}
 
 CHUNK_SIZE = 800   # 每块最大字符数
-CHUNK_OVERLAP = 100  # 块间重叠字符数
 
 
 # ── 文件收集 ──────────────────────────────────────────
 def collect_files(project_dir: str) -> list[Path]:
-    """递归收集 project_dir 下所有应索引的文件路径。"""
+    """递归收集 project_dir 下所有应索引的文件路径 (os.walk + topdown pruning)."""
     root = Path(project_dir)
     files = []
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        if path.suffix.lower() not in EXTENSIONS:
-            continue
-        if path.name in SKIP_FILES:
-            continue
-        parts = set(path.parts)
-        if parts & SKIP_DIRS:
-            continue
-        files.append(path)
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True):
+        # Prune excluded directories
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for fname in filenames:
+            fpath = Path(dirpath) / fname
+            if fpath.suffix.lower() not in EXTENSIONS:
+                continue
+            if fname in SKIP_FILES:
+                continue
+            files.append(fpath)
     return files
 
 
 # ── 文本分块 ──────────────────────────────────────────
 def split_by_paragraphs(text: str, file_path: Path) -> list[dict]:
-    """按段落分块（通用策略，适用于 .md / .txt）。"""
+    """按段落分块（通用策略，适用于 .md / .txt），基于偏移量计算行号。"""
     paragraphs = re.split(r"\n\s*\n", text)
     chunks = []
     current = ""
-    current_line = 1
-    line_start = 1
+    current_start_offset = 0
+
+    # Pre-compute line boundaries for offset→line mapping
+    line_starts = [0]
+    for i, ch in enumerate(text):
+        if ch == "\n":
+            line_starts.append(i + 1)
+
+    def offset_to_line(offset):
+        # Binary search the line number for an offset
+        lo, hi = 0, len(line_starts)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if line_starts[mid] <= offset:
+                lo = mid + 1
+            else:
+                hi = mid
+        return lo
 
     for para in paragraphs:
         para = para.strip()
         if not para:
             continue
-        para_lines = para.count("\n") + 1
         if len(current) + len(para) > CHUNK_SIZE and current:
+            line_start = offset_to_line(current_start_offset)
+            line_end = offset_to_line(current_start_offset + len(current))
             chunks.append({
                 "content": current.strip(),
                 "file": str(file_path),
                 "line_start": line_start,
-                "line_end": current_line - 1,
+                "line_end": line_end,
             })
+            current_start_offset = text.find(para)
             current = para
-            line_start = current_line
         else:
             if current:
                 current += "\n\n" + para
             else:
                 current = para
-        current_line += para_lines
+                current_start_offset = text.find(para)
 
     if current.strip():
+        line_start = offset_to_line(current_start_offset)
+        line_end = offset_to_line(current_start_offset + len(current))
         chunks.append({
             "content": current.strip(),
             "file": str(file_path),
             "line_start": line_start,
-            "line_end": current_line,
+            "line_end": line_end,
         })
     return chunks
 
@@ -120,8 +137,11 @@ def split_python(text: str, file_path: Path) -> list[dict]:
                     "line_start": current_start,
                     "line_end": i - 1,
                 })
-            current = [line]
-            current_start = i
+                current = [line]
+                current_start = i
+            else:
+                # 短前导（decorator/注释）合并到新函数
+                current.append(line)
         else:
             current.append(line)
 
@@ -155,11 +175,7 @@ def chunk_file(file_path: Path) -> list[dict]:
     if ext == ".py":
         chunks = split_python(text, file_path)
     elif ext == ".json":
-        # JSON 作为一个块
-        if len(text) < CHUNK_SIZE * 2:
-            return [{"content": text, "file": str(file_path), "line_start": 1, "line_end": text.count(chr(10)) + 1}]
-        else:
-            chunks = split_by_paragraphs(text, file_path)
+        chunks = split_by_paragraphs(text, file_path)
     else:
         chunks = split_by_paragraphs(text, file_path)
 
