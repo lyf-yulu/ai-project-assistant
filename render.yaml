@@ -1,0 +1,22 @@
+# Render Blueprint — 一键部署
+# 在 Render Dashboard 中连接 Git 仓库后自动识别此文件
+services:
+  - type: web
+    name: ai-project-assistant
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: ./backend/start.sh
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false  # 不在 Render Dashboard 显示，需手动设置
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com
+      - key: DEEPSEEK_MODEL
+        value: deepseek-chat
+      - key: KNOWLEDGE_DIR
+        value: backend/knowledge
+      - key: MAX_QUESTION_LENGTH
+        value: "2000"
+      - key: HF_HOME
+        value: /tmp/hf_cache  # Render 临时目录，重启后重新下载模型
