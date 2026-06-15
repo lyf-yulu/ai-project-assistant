@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 项目助手</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 侧栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <h3>📂 项目</h3>
+            <div id="project-list"></div>
+        </div>
+        <div class="sidebar-section">
+            <h3>💬 最近对话</h3>
+            <div id="history-list"></div>
+        </div>
+    </aside>
+
+    <!-- 主聊天区 -->
+    <div class="main">
+        <div class="header">🤖 AI 项目助手</div>
+
+        <div class="chat-area" id="chat-area">
+            <!-- 示例问题（首次显示） -->
+            <div class="examples" id="examples">
+                <button class="example-btn">生成的时候提示 timeout 怎么解决？</button>
+                <button class="example-btn">Seedance 如何设置参考图？</button>
+                <button class="example-btn">Nano Banana 的参数是什么意思？</button>
+            </div>
+            <div class="empty-state" id="empty-state">
+                选择一个项目或直接提问，AI 助手会基于项目文档回答。
+            </div>
+        </div>
+
+        <!-- 输入区 -->
+        <div class="input-area">
+            <input
+                type="text"
+                id="question-input"
+                placeholder="输入你的问题..."
+                autocomplete="off"
+            />
+            <button id="send-btn">发送</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
