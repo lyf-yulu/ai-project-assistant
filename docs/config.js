@@ -8,4 +8,4 @@
 //   示例：https://ai-project-assistant.onrender.com
 //   Render 免费层冷启动约 30 秒，首次请求可能较慢
 // ============================================================
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = "https://ai-project-assistant-zaaq.onrender.com";
