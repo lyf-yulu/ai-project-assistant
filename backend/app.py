@@ -41,7 +41,14 @@ def health():
     """健康检查（含调试信息）。"""
     import os as _os
     kd = _os.environ.get("KNOWLEDGE_DIR", "backend/knowledge")
-    debug = {"exists": _os.path.exists(kd)}
+    cwd = _os.getcwd()
+    debug = {
+        "cwd": cwd,
+        "kd": kd,
+        "abs_kd": _os.path.abspath(kd),
+        "exists": _os.path.exists(kd),
+        "cwd_contents": _os.listdir(cwd),
+    }
     if debug["exists"]:
         debug["contents"] = _os.listdir(kd)
         for item in debug["contents"]:
