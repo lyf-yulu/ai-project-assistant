@@ -39,9 +39,16 @@ SYSTEM_PROMPT = """你是 AI Generation Portable Apps 的技术支持助手。
 @app.route("/api/health", methods=["GET"])
 def health():
     """健康检查。"""
+    from pathlib import Path
+    import os as _os
+    kd = Path(_os.environ.get("KNOWLEDGE_DIR", "knowledge"))
+    info = {"kd": str(kd), "abs": str(kd.absolute()), "exists": kd.exists()}
+    if kd.exists():
+        info["subdirs"] = [{"name": d.name, "has_faiss": (d / "index.faiss").exists(), "files": [f.name for f in d.iterdir()]} for d in kd.iterdir() if d.is_dir()]
     return jsonify({
         "status": "ok",
         "projects": list_projects(),
+        "_debug": info,
     })
 
 
