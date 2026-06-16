@@ -30,7 +30,8 @@ OUTPUT_DIR = Path(__file__).resolve().parent.parent / "backend/knowledge"
 EXTENSIONS = {".md", ".py", ".html", ".js", ".css", ".json"}
 
 SKIP_DIRS = {"outputs", "archives", "logs", "state", "__pycache__",
-             ".git", "node_modules", ".superpowers", "data", "release"}
+             ".git", "node_modules", ".superpowers", "data", "release",
+             ".venv", "venv", "env", ".env", "__MACOSX"}
 
 SKIP_FILES = {"config.json", "config_github.json", ".DS_Store"}
 

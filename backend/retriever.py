@@ -10,7 +10,7 @@ import numpy as np
 from embedder import embed_query
 
 KNOWLEDGE_DIR = Path(os.environ.get("KNOWLEDGE_DIR", Path(__file__).resolve().parent / "knowledge"))
-SIMILARITY_THRESHOLD = 0.5
+SIMILARITY_THRESHOLD = 0.4
 TOP_K = 5
 
 # 缓存已加载的索引: {project_name: (index, chunks_meta)}
