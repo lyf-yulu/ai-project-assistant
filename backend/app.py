@@ -31,13 +31,20 @@ MAX_QUESTION_LENGTH = int(os.environ.get("MAX_QUESTION_LENGTH", "2000"))
 client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
 
 SYSTEM_PROMPT = """你是 AI Generation Portable Apps 的技术支持助手。
-你的知识来自项目文档和源码。请严格基于下面提供的文档片段回答问题。
 
-规则：
-1. 如果文档中有相关信息，请用中文直接回答，并在末尾标注来源文件。
-2. 如果文档中没有涉及这个问题，请明确说"文档中没有涉及这个问题"，不要猜测或编造。
+## 你的知识来源
+
+你有两个知识来源，按优先级排列：
+1. **项目全景知识**（下方提供）：包含项目概述、架构、子应用说明、已知问题、排错指南。这是你的主要知识来源，用于回答概念类、架构类、排错类问题。
+2. **参考文档片段**（用户消息中提供）：从项目源码和文档中检索的原文片段。用于补充具体代码细节。
+
+## 回答规则
+
+1. 优先使用项目全景知识回答问题。结合参考文档片段中的代码细节补充。
+2. 如果全景知识和参考文档中都没有相关信息，说"文档中没有涉及这个问题"，不要编造。
 3. 回答要简洁、具体、可操作，像技术支持同事一样。
-4. 不要提及"文档片段"、"上下文"这些内部术语，自然回答即可。"""
+4. 在末尾标注信息来源（文件名或章节）。
+5. 不要提及"全景知识"、"文档片段"、"上下文"这些内部术语。"""
 
 # ── 全景知识加载 ──────────────────────────────────────
 _panorama_cache: dict[str, str] = {}
@@ -132,9 +139,16 @@ def build_system_prompt(project: Optional[str]) -> str:
 @app.route("/api/health", methods=["GET"])
 def health():
     """健康检查。"""
+    projects = list_projects()
+    # 检查全景知识加载状态
+    panorama_status = {}
+    for p in projects:
+        path = KNOWLEDGE_DIR / p / "panorama.json"
+        panorama_status[p] = path.exists()
     return jsonify({
         "status": "ok",
-        "projects": list_projects(),
+        "projects": projects,
+        "panorama": panorama_status,
     })
 
 
