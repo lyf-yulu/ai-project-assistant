@@ -3,13 +3,18 @@
 部署: Render Free Tier
 启动: gunicorn app:app --bind 0.0.0.0:$PORT
 """
+import json
 import os
 import logging
+from pathlib import Path
+
+from typing import Optional
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 
-from retriever import search, list_projects
+from retriever import search, list_projects, KNOWLEDGE_DIR
 
 app = Flask(__name__)
 CORS(app)
@@ -33,6 +38,94 @@ SYSTEM_PROMPT = """你是 AI Generation Portable Apps 的技术支持助手。
 2. 如果文档中没有涉及这个问题，请明确说"文档中没有涉及这个问题"，不要猜测或编造。
 3. 回答要简洁、具体、可操作，像技术支持同事一样。
 4. 不要提及"文档片段"、"上下文"这些内部术语，自然回答即可。"""
+
+# ── 全景知识加载 ──────────────────────────────────────
+_panorama_cache: dict[str, str] = {}
+
+
+def _format_panorama(data: dict) -> str:
+    """将全景知识 JSON 转为紧凑文本。"""
+    parts = []
+
+    overview = data.get("project_overview", "")
+    if overview:
+        parts.append(f"## 项目概述\n{overview}")
+
+    arch = data.get("architecture", {})
+    if arch.get("topology"):
+        parts.append(f"## 系统架构\n{arch['topology']}")
+    if arch.get("data_flow"):
+        parts.append(f"数据流: {arch['data_flow']}")
+
+    sub_apps = data.get("sub_apps", {})
+    if sub_apps:
+        lines = []
+        for name, info in sub_apps.items():
+            lines.append(f"\n### {name}")
+            if info.get("purpose"):
+                lines.append(f"功能: {info['purpose']}")
+            if info.get("port"):
+                lines.append(f"端口: {info['port']}")
+            if info.get("entry_point"):
+                lines.append(f"启动: {info['entry_point']}")
+            endpoints = info.get("key_endpoints", [])
+            if endpoints:
+                ep_lines = [f"  {e['method']} {e['path']} - {e.get('purpose', '')}" for e in endpoints]
+                lines.append("API端点:\n" + "\n".join(ep_lines))
+        parts.append("## 子应用" + "\n".join(lines))
+
+    known = data.get("known_issues", [])
+    if known:
+        issues = []
+        for i in known:
+            issues.append(f"- {i.get('symptom', '')}\n  原因: {i.get('cause', '')}\n  解决: {i.get('solution', '')}")
+        parts.append("## 已知问题\n" + "\n".join(issues))
+
+    ts = data.get("troubleshooting_guide", "")
+    if ts:
+        parts.append(f"## 排错指南\n{ts}")
+
+    return "\n\n".join(parts)
+
+
+def load_panorama(project_name: str) -> str:
+    """加载项目全景知识文档，返回格式化文本。"""
+    if project_name in _panorama_cache:
+        return _panorama_cache[project_name]
+
+    path = KNOWLEDGE_DIR / project_name / "panorama.json"
+    if not path.exists():
+        return ""
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        text = _format_panorama(data)
+        _panorama_cache[project_name] = text
+        return text
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"加载全景知识失败 ({project_name}): {e}")
+        return ""
+
+
+def build_system_prompt(project: Optional[str]) -> str:
+    """构建带全景知识的系统提示。"""
+    prompt = SYSTEM_PROMPT
+
+    if project:
+        panorama = load_panorama(project)
+    else:
+        # 合并所有项目全景知识
+        parts = []
+        for proj_name in list_projects():
+            p = load_panorama(proj_name)
+            if p:
+                parts.append(f"--- {proj_name} ---\n{p}")
+        panorama = "\n\n".join(parts)
+
+    if panorama:
+        prompt += f"\n\n## 项目全景知识\n{panorama}"
+
+    return prompt
 
 
 # ── 路由 ──────────────────────────────────────────────
@@ -92,13 +185,16 @@ def chat():
         })
     context = "\n\n---\n\n".join(context_parts)
 
+    # 构建带全景知识的系统提示
+    system_prompt = build_system_prompt(project)
+
     # 调用 DeepSeek
     try:
         response = client.chat.completions.create(
             model=DEEPSEEK_MODEL,
             temperature=0.3,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"参考文档:\n{context}\n\n问题: {question}"},
             ],
         )
