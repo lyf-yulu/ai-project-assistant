@@ -65,6 +65,41 @@
   },
   "known_issues": [
     {
+      "symptom": "报错 latin-1 codec 相关错误",
+      "cause": "API Key 没有正确输入，后端读取 Key 时遇到非 latin-1 编码字符",
+      "solution": "在网页 UI 中重新输入正确的 API Key，确认没有多余空格或特殊字符。"
+    },
+    {
+      "symptom": "<urlopen error [Errno 32] Broken pipe>",
+      "cause": "API Key 没有输入完整或格式不正确",
+      "solution": "重新输入完整的 API Key。检查 Key 是否被截断，是否缺少前缀或后缀。"
+    },
+    {
+      "symptom": "<urlopen error [Errno 60] Operation timed out>",
+      "cause": "并发数或重复次数设置过高，网络请求过多导致超时",
+      "solution": "降低并发数（concurrency）和重复次数（repeat_count）。建议先设为 1 测试单任务是否正常。"
+    },
+    {
+      "symptom": "HTTP 400 错误",
+      "cause": "请求格式或参数错误，常见原因：图片未正确上传、参数值不合法",
+      "solution": "检查上传的图片是否正常（格式、大小）。确认所有必填参数已填写且值合法。先用 dry_run 测试参数。"
+    },
+    {
+      "symptom": "HTTP 401 错误",
+      "cause": "API Key 验证失败，Key 错误或已过期",
+      "solution": "在网页 UI 中重新输入正确的 API Key。确认 Key 是否仍然有效。"
+    },
+    {
+      "symptom": "HTTP 403 错误",
+      "cause": "当前 API Key 没有访问权限，可能被限制或分组不同",
+      "solution": "换一个可用的 API Key，或检查 Key 所属分组/项目是否有对应模型的调用权限。"
+    },
+    {
+      "symptom": "HTTP 404 错误",
+      "cause": "远程模型服务暂时不可用或接口路径变更",
+      "solution": "通常需要等待服务恢复。可以尝试切换 provider 或 model。确认模型名称正确，查看 /api/config 获取可用模型列表。"
+    },
+    {
       "symptom": "服务重启后任务丢失",
       "cause": "JOBS 在内存中，重启不持久化",
       "solution": "重启前确认无运行中任务。"
