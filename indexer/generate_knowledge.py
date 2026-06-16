@@ -15,6 +15,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 from openai import OpenAI
 
@@ -232,7 +233,7 @@ def needs_regeneration(project_dir: str, panorama_path: Path) -> bool:
         return True
 
 
-def generate_panorama(project_name: str, project_dir: str, force: bool = False) -> dict | None:
+def generate_panorama(project_name: str, project_dir: str, force: bool = False) -> Optional[dict]:
     """为一个项目生成全景知识文档。"""
     print(f"\n{'='*60}")
     print(f"生成知识文档: {project_name}")
