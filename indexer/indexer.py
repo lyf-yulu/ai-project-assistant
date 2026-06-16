@@ -248,9 +248,7 @@ def index_project(project_name: str, project_dir: str):
     faiss.write_index(index, str(out_dir / "index.faiss"))
     with open(out_dir / "chunks.json", "w", encoding="utf-8") as f:
         for ch in all_chunks:
-            # 不存 content 到 json（已经在向量里），只存元数据
-            meta = {k: v for k, v in ch.items() if k != "content"}
-            f.write(json.dumps(meta, ensure_ascii=False) + "\n")
+            f.write(json.dumps(ch, ensure_ascii=False) + "\n")
 
     print(f"索引已写入: {out_dir}")
     print(f"  - index.faiss ({index.ntotal} 个向量)")

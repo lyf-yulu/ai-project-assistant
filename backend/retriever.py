@@ -93,7 +93,7 @@ def search(query: str, project: Optional[str] = None) -> list[dict]:
             meta = dict(chunks[idx])
             meta["project"] = proj_name
             meta["similarity"] = round(score, 4)
-            meta["snippet"] = _get_snippet(proj_name, meta, max_len=200)
+            meta["snippet"] = _get_snippet(proj_name, meta, max_len=800)
             all_results.append(meta)
 
     # 按相似度降序排列
@@ -101,23 +101,11 @@ def search(query: str, project: Optional[str] = None) -> list[dict]:
     return all_results[:TOP_K]
 
 
-def _get_snippet(project_name: str, meta: dict, max_len: int = 200) -> str:
-    """从源文件读取指定行范围的文本片段。"""
-    try:
-        project_root = meta.get("project_root")
-        if not project_root:
-            return "(项目路径未记录)"
-
-        full_path = Path(project_root) / meta["file"]
-        if not full_path.exists():
-            return "(源文件未找到)"
-
-        lines = full_path.read_text(encoding="utf-8").split("\n")
-        start = max(0, meta["line_start"] - 1)
-        end = min(len(lines), meta.get("line_end", start + 5))
-        snippet = "\n".join(lines[start:end])
-        if len(snippet) > max_len:
-            snippet = snippet[:max_len] + "..."
-        return snippet
-    except Exception:
-        return "(无法读取文件)"
+def _get_snippet(project_name: str, meta: dict, max_len: int = 800) -> str:
+    """从 chunks.json 存储的 content 字段获取文本片段。"""
+    content = meta.get("content", "")
+    if not content:
+        return "(无内容)"
+    if len(content) > max_len:
+        content = content[:max_len] + "..."
+    return content
