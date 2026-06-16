@@ -5,11 +5,11 @@ services:
     name: ai-project-assistant
     runtime: python
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
+    buildCommand: pip install -r backend/requirements.txt && HF_HOME=/opt/render/project/src/.hf_cache python3 -c "from fastembed import TextEmbedding; m=TextEmbedding(model_name='BAAI/bge-small-zh-v1.5', cache_dir='/opt/render/project/src/.hf_cache'); print('model cached:', len(list(m.embed(['ready']))))"
     startCommand: ./backend/start.sh
     envVars:
       - key: DEEPSEEK_API_KEY
-        sync: false  # 不在 Render Dashboard 显示，需手动设置
+        sync: false
       - key: DEEPSEEK_BASE_URL
         value: https://api.deepseek.com
       - key: DEEPSEEK_MODEL
@@ -19,4 +19,4 @@ services:
       - key: MAX_QUESTION_LENGTH
         value: "2000"
       - key: HF_HOME
-        value: /tmp/hf_cache
+        value: /opt/render/project/src/.hf_cache
