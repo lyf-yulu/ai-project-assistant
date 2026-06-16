@@ -11,5 +11,4 @@ venv/
 htmlcov/
 .coverage
 .hf_cache/
-*.faiss
 backend/model/
