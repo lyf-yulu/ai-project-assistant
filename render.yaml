@@ -5,7 +5,7 @@ services:
     name: ai-project-assistant
     runtime: python
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
+    buildCommand: pip install -r backend/requirements.txt && python -c "import os; os.environ['HF_HOME']='/opt/render/project/src/.hf_cache'; from fastembed import TextEmbedding; TextEmbedding(model_name='BAAI/bge-small-zh-v1.5', cache_dir='/opt/render/project/src/.hf_cache')"
     startCommand: ./backend/start.sh
     envVars:
       - key: DEEPSEEK_API_KEY
@@ -16,5 +16,7 @@ services:
         value: deepseek-chat
       - key: KNOWLEDGE_DIR
         value: knowledge
+      - key: HF_HOME
+        value: /opt/render/project/src/.hf_cache
       - key: MAX_QUESTION_LENGTH
         value: "2000"

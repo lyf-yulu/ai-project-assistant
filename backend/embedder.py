@@ -77,7 +77,13 @@ def embed_texts(texts: list[str]) -> np.ndarray:
         return np.empty((0, VECTOR_DIM), dtype=np.float32)
 
     if _check_local():
-        return _embed_local(texts)
+        try:
+            return _embed_local(texts)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"fastembed 本地嵌入失败，回退到 HF API: {e}")
+            # fallback 到 HF API
+            return _embed_remote(texts)
     else:
         return _embed_remote(texts)
 

@@ -75,7 +75,7 @@ def chat():
         results = search(question, project=project)
     except Exception as e:
         logger.error(f"检索失败: {e}")
-        return jsonify({"error": "search_error", "message": "检索服务异常"}), 500
+        return jsonify({"error": "search_error", "message": f"检索服务异常: {e}"}), 500
 
     if not results:
         return jsonify({
