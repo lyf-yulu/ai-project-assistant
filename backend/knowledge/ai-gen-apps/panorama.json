@@ -1,0 +1,160 @@
+{
+  "project_overview": "AI Generation Portable Apps (v0.2.6) 是一个本地可移植的 AI 生成工具集。包含三个子应用：Seedance（多参考视频生成）、Nano Banana（多图参考图片生成）、Dreamina（图片/视频生成）。所有应用使用 Python 标准库（无需 pip 依赖），启动本地 HTTP 服务器，打开浏览器 UI，支持本地存档。通过 Portal 统一入口在端口 9090 提供单页应用，反向代理到各子应用。支持 macOS 和 Windows，Windows 启动器首次运行会自动下载便携 Python 运行时。",
+  "architecture": {
+    "topology": "Portal（端口 9090）作为统一 SPA 和反向代理，转发 /seedance/* 到 8787、/nano-banana/* 到 8797、/dreamina/* 到 8888。Portal 通过 CORS=1 环境变量启动子应用，子应用检测该变量后跳过自动打开浏览器并添加 CORS 头。所有子应用端口固定。",
+    "data_flow": "用户通过 Portal 网页（端口 9090）操作 → Portal 的 app.py 反向代理请求到对应子应用 → 子应用 ThreadPoolExecutor 异步执行任务 → 前端轮询 /api/jobs/{id} 获取状态 → 完成后通过 download_url 下载结果。Portal 在代理过程中读取响应体提取 job_id 用于使用量统计。",
+    "patterns": [
+      "每个子应用是单个 app.py 文件，无模块拆分",
+      "FALLBACK_PROVIDERS 字典定义默认供应商配置",
+      "VALUE_FIELDS 集合定义可提取的表单字段",
+      "JOBS 字典（内存中）保存任务状态，重启丢失",
+      "Handler 类继承 SimpleHTTPRequestHandler 实现 REST 端点",
+      "ThreadPoolExecutor 控制并发，每个并发槽运行 run_one()",
+      "providers.json 定义供应商/模型/默认参数",
+      "输出命名：{output_name}-{index}.ext 或时间戳自动命名"
+    ]
+  },
+  "sub_apps": {
+    "portal": {
+      "purpose": "统一单页应用 + 反向代理，聚合所有子应用到一个界面，追踪各子应用使用统计",
+      "port": 9090,
+      "entry_point": "cd portal && python3 app.py 或 ./Start All.command",
+      "key_endpoints": [
+        {"path": "/", "method": "GET", "purpose": "Portal SPA 首页，含 4 个标签页"},
+        {"path": "/seedance/*", "method": "*", "purpose": "反向代理到 seedance:8787"},
+        {"path": "/nano-banana/*", "method": "*", "purpose": "反向代理到 nano-banana:8797"},
+        {"path": "/dreamina/*", "method": "*", "purpose": "反向代理到 dreamina:8888"}
+      ],
+      "key_patterns": [
+        "反向代理读取完整响应体提取 job_id 用于统计",
+        "按 IP 追踪使用次数",
+        "自动启动子应用进程并监控",
+        "前端 serve 时设置 Cache-Control: no-cache"
+      ]
+    },
+    "seedance": {
+      "purpose": "多参考视频生成器，支持 Seedance 2.0 模型（T8Star 或火山方舟 Ark）",
+      "port": 8787,
+      "entry_point": "cd seedance && python3 app.py 或双击 Start Seedance.command",
+      "key_endpoints": [
+        {"path": "/api/config", "method": "GET", "purpose": "返回可用供应商、模型、默认参数、API Key 状态"},
+        {"path": "/api/schema", "method": "GET", "purpose": "返回字段结构（value_fields, file_fields, media_item）"},
+        {"path": "/api/request-template", "method": "GET", "purpose": "返回最小/完整请求模板及字段说明"},
+        {"path": "/api/jobs/json", "method": "POST", "purpose": "提交 JSON 格式视频生成任务"},
+        {"path": "/api/jobs/{job_id}", "method": "GET", "purpose": "查询任务状态和结果"},
+        {"path": "/api/activity", "method": "GET", "purpose": "查看后台调用记录"},
+        {"path": "/api/open-output-dir", "method": "POST", "purpose": "在文件管理器中打开输出目录"},
+        {"path": "/api/cleanup-cache", "method": "POST", "purpose": "清理超期缓存（>30天孤立素材，>14天日志）"}
+      ],
+      "key_patterns": [
+        "Provider 系统：t8star 或 volcengine，api_style 决定请求格式",
+        "首尾帧模式不能与参考图/视频/音频混用",
+        "参考音频需至少配合一个参考图或参考视频",
+        "支持 dry_run 测试参数解析不产生费用"
+      ]
+    },
+    "nano-banana": {
+      "purpose": "多图参考图片生成器，支持 T8Star 和 Gemini(Chiyun) 供应商",
+      "port": 8797,
+      "entry_point": "cd nano-banana && python3 app.py 或双击 Start Nano Banana.command",
+      "key_endpoints": [
+        {"path": "/api/config", "method": "GET", "purpose": "返回可用供应商、模型、默认参数"},
+        {"path": "/api/schema", "method": "GET", "purpose": "返回字段结构"},
+        {"path": "/api/request-template", "method": "GET", "purpose": "返回请求模板"},
+        {"path": "/api/jobs/json", "method": "POST", "purpose": "提交 JSON 格式图片生成任务"},
+        {"path": "/api/jobs/{job_id}", "method": "GET", "purpose": "查询任务状态"},
+        {"path": "/api/activity", "method": "GET", "purpose": "查看后台记录"},
+        {"path": "/api/open-output-dir", "method": "POST", "purpose": "打开输出目录"},
+        {"path": "/api/cleanup-cache", "method": "POST", "purpose": "清理缓存"}
+      ],
+      "key_patterns": [
+        "两种模式：img2img（图生图）和 text2img（文生图）",
+        "Provider 系统：t8star 或 gemini",
+        "支持可选浏览器端图片缩放（resize_enabled 等参数）",
+        "最多支持 14 张参考图（image_1 到 image_14）"
+      ]
+    },
+    "dreamina": {
+      "purpose": "通过 Dreamina CLI 命令行工具封装的图片/视频生成器",
+      "port": 8888,
+      "entry_point": "cd dreamina && python3 app.py",
+      "key_endpoints": [
+        {"path": "/api/config", "method": "GET", "purpose": "返回运行时配置"},
+        {"path": "/api/jobs", "method": "POST", "purpose": "提交生成任务"},
+        {"path": "/api/jobs/{job_id}", "method": "GET", "purpose": "查询任务状态"}
+      ],
+      "key_patterns": [
+        "CLI 封装模式：调用外部 dreamina 命令而非直接 API",
+        "管理登录态和环境变量",
+        "轮询 submit_id 获取结果"
+      ]
+    }
+  },
+  "cross_cutting": {
+    "job_system": "所有子应用使用统一的任务系统：POST /api/jobs/json 创建任务 → 返回 job_id → ThreadPoolExecutor 异步执行 run_job() → 每个并发槽调用 run_one() → 前端轮询 GET /api/jobs/{id} 获取状态。JOBS 字典在内存中，服务重启会丢失所有任务。任务结果包含 download_url 用于下载生成文件。支持 repeat_count 批量重复、concurrency 并发控制、dry_run 测试模式。",
+    "provider_system": "Seedance 和 Nano Banana 使用 providers.json 定义可用供应商。每个供应商配置包含 base_url、models[]、defaults{}。前端 bindProviderSwitch() 切换供应商时重建模型下拉。api_style 决定后端如何构造请求。支持通过替换 providers.json 增量更新模型，但不支持新增未实现过的 API 协议。",
+    "error_handling": "API 返回结构化错误：ok: false + error 字符串 + error_code + error_info（code, message, detail, retryable）。常见错误码：invalid_request（缺少 API Key）、api_error（模型调用失败）。dry_run 模式可在提交前验证参数。",
+    "state_management": "state/ 目录存放运行时 JSON（使用统计、预设、活动日志），git 忽略。outputs/ 存放生成文件。archives/ 存放用户存档 zip（可能含 API Key，勿分享）。logs/ 存放调试日志。providers.json 提交到 git。"
+  },
+  "known_issues": [
+    {
+      "symptom": "服务重启后正在运行的任务丢失",
+      "cause": "JOBS 字典只在内存中，重启不持久化",
+      "solution": "重启前确认没有正在运行的任务。Portal 的统计页面可查看当前任务状态。"
+    },
+    {
+      "symptom": "后端修改后需重启才能生效",
+      "cause": "Python 进程不自动重载",
+      "solution": "停止当前服务（Stop Test.command），重新启动（Start All.command）。前端修改刷新浏览器即可。"
+    },
+    {
+      "symptom": "打开 static/index.html 无法正常使用",
+      "cause": "file:// 协议下本地后端未运行，API 请求失败",
+      "solution": "必须通过启动脚本启动本地服务器，不能直接双击 HTML 文件。"
+    },
+    {
+      "symptom": "端口被占用导致启动失败",
+      "cause": "子应用端口固定（seedance:8787, nano-banana:8797, dreamina:8888, portal:9090）",
+      "solution": "检查是否有旧进程占用端口。使用 Stop Test.command 关闭，或 lsof -i :端口号 查找占用进程。"
+    },
+    {
+      "symptom": "API Key 验证失败",
+      "cause": "未配置 API Key 或 Key 无效",
+      "solution": "在网页 UI 中输入 API Key，或确认 providers.json 中本地配置的 key 是否正确。"
+    },
+    {
+      "symptom": "Seedance 任务提交失败提示参数冲突",
+      "cause": "首尾帧模式和参考图/视频/音频不能混用；参考音频需配合参考图或视频",
+      "solution": "检查 media 字段：使用 first_frame/last_frame 时不要同时使用 ref_image/ref_video/ref_audio；单独使用 ref_audio 无效。"
+    },
+    {
+      "symptom": "Dreamina 生成无响应",
+      "cause": "Dreamina CLI 工具未安装或未登录",
+      "solution": "确认 dreamina CLI 已安装且登录态有效。Dreamina 是 CLI 封装模式，不直接调用 API。"
+    }
+  ],
+  "troubleshooting_guide": "## 常见排错\n\n**Q: 启动后浏览器没有自动打开？**\nA: 如果通过 Portal 启动子应用（设置了 CORS=1），子应用不会自动打开浏览器。直接访问 http://localhost:9090。\n\n**Q: 如何查看任务是否在运行？**\nA: 访问 Portal 的「统计」标签页，可以看到各子应用的任务状态。或用 curl 调用 /api/activity。\n\n**Q: 怎么安全停止服务？**\nA: 双击 Stop Test.command（会终止 Portal 及其所有子应用进程）。不要直接关终端窗口。\n\n**Q: 输出的文件在哪里？**\nA: 默认在各子应用的 outputs/ 目录。可通过 output_dir 参数自定义。调用 /api/open-output-dir 可在文件管理器中打开。\n\n**Q: 如何添加新模型？**\nA: 编辑对应子应用的 providers.json，在 models 数组中添加新模型条目。api_style 必须是后端已支持的类型。替换后重启 app。\n\n**Q: 前端改了没生效？**\nA: Portal 设置了 Cache-Control: no-cache，刷新浏览器即可。如果是后端代码修改，需要重启服务。",
+  "file_conventions": {
+    "directories": {
+      "state/": "运行时 JSON（使用统计、预设、活动日志），gitignore",
+      "outputs/": "生成的文件，gitignore",
+      "archives/": "用户存档 zip，可能含 API Key，勿分享，gitignore",
+      "logs/": "启动和调试日志，gitignore",
+      "static/": "前端静态文件（index.html, app.js, styles.css）"
+    },
+    "key_files": {
+      "providers.json": "供应商/模型/默认参数配置，提交到 git",
+      "app.py": "唯一的后端文件，包含所有逻辑",
+      "Start All.command": "macOS 启动脚本，启动 Portal 和所有子应用",
+      "Start Test.command": "测试模式启动",
+      "Stop Test.command": "停止所有服务"
+    }
+  },
+  "meta": {
+    "project": "ai-gen-apps",
+    "version": "v0.2.6",
+    "generated_at": "2026-06-16T00:00:00Z",
+    "model": "manual",
+    "source": "基于 README.md, CLAUDE.md, API调用说明.md 和源码结构编写"
+  }
+}
