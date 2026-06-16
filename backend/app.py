@@ -38,27 +38,10 @@ SYSTEM_PROMPT = """你是 AI Generation Portable Apps 的技术支持助手。
 # ── 路由 ──────────────────────────────────────────────
 @app.route("/api/health", methods=["GET"])
 def health():
-    """健康检查（含调试信息）。"""
-    import os as _os
-    kd = _os.environ.get("KNOWLEDGE_DIR", "backend/knowledge")
-    cwd = _os.getcwd()
-    debug = {
-        "cwd": cwd,
-        "kd": kd,
-        "abs_kd": _os.path.abspath(kd),
-        "exists": _os.path.exists(kd),
-        "cwd_contents": _os.listdir(cwd),
-    }
-    if debug["exists"]:
-        debug["contents"] = _os.listdir(kd)
-        for item in debug["contents"]:
-            sub = _os.path.join(kd, item)
-            if _os.path.isdir(sub):
-                debug[item] = _os.listdir(sub)
+    """健康检查。"""
     return jsonify({
         "status": "ok",
         "projects": list_projects(),
-        "debug": debug,
     })
 
 

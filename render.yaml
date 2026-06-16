@@ -15,6 +15,6 @@ services:
       - key: DEEPSEEK_MODEL
         value: deepseek-chat
       - key: KNOWLEDGE_DIR
-        value: backend/knowledge
+        value: knowledge
       - key: MAX_QUESTION_LENGTH
         value: "2000"
