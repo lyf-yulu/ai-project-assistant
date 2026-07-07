@@ -2,6 +2,7 @@
 
 部署: Render Free Tier
 启动: gunicorn app:app --bind 0.0.0.0:$PORT
+版本: 2026-07-07 - 补充 JSON 解析报错的供应商配置条目
 """
 import json
 import os
