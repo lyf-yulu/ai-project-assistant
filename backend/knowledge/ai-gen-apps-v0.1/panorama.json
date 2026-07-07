@@ -100,6 +100,11 @@
       "solution": "通常需要等待服务恢复。可以尝试切换 provider 或 model。确认模型名称正确，查看 /api/config 获取可用模型列表。"
     },
     {
+      "symptom": "报错 Expecting value: line 1 column 1 (char 0)",
+      "cause": "供应商配置错误，远程返回的不是合法 JSON（通常是空响应或 HTML 错误页），后端解析 JSON 时失败",
+      "solution": "检查供应商配置：Seedance 需要保证 base_url 为空（使用内置默认地址）；Nano Banana 需要保证供应商是 chiyun 或 t8star。检查 providers.json 或 UI 中的供应商选择是否正确。"
+    },
+    {
       "symptom": "服务重启后任务丢失",
       "cause": "JOBS 在内存中，重启不持久化",
       "solution": "重启前确认无运行中任务。"
