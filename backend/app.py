@@ -153,6 +153,29 @@ def health():
     })
 
 
+@app.route("/api/debug/panorama", methods=["GET"])
+def debug_panorama():
+    """诊断端点：返回加载的 panorama 内容摘要。"""
+    result = {}
+    for p in list_projects():
+        path = KNOWLEDGE_DIR / p / "panorama.json"
+        if not path.exists():
+            result[p] = {"error": "file missing"}
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            issues = data.get("known_issues", [])
+            result[p] = {
+                "file_size": path.stat().st_size,
+                "issue_count": len(issues),
+                "symptoms": [i.get("symptom", "") for i in issues],
+                "meta": data.get("meta", {}),
+            }
+        except Exception as e:
+            result[p] = {"error": str(e)}
+    return jsonify(result)
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     """问答接口。"""
